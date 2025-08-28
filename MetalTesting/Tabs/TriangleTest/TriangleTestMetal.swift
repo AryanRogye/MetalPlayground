@@ -177,6 +177,10 @@ struct TriangleTestMetal: UIViewRepresentable {
             ///
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             
+            cmd.addCompletedHandler { cb in
+                MetalRootCoordinator.shared.handleCommandBufferExecutionTime(cb, from: "Triangle Test")
+            }
+
             enc.endEncoding()
             cmd.present(drw)
             cmd.commit()

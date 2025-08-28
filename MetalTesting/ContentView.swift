@@ -13,6 +13,7 @@ import MetalKit
 enum Tabs: String, CaseIterable {
     case triangle_test = "Triangle Test"
     case moving_bars   = "Moving Bars"
+    case moving_bars_optimized = "Moving Bars Optimized"
     
     @ViewBuilder
     var view: some View {
@@ -21,6 +22,8 @@ enum Tabs: String, CaseIterable {
             TriangleTestView()
         case .moving_bars:
             MovingBarsView()
+        case .moving_bars_optimized:
+            OptimizedMovingBarsView()
         }
     }
 }
@@ -29,12 +32,11 @@ struct ContentView: View {
     
     @State private var selectedTab : Tabs? = nil
     @State private var shouldShowDebugInfo : Bool = false
-    
-    @StateObject private var metalRootCoordinator : MetalRootCoordinator = MetalRootCoordinator()
+    @ObservedObject private var metalRootCoordinator: MetalRootCoordinator = .shared
     
     var body: some View {
         ZStack {
-            MetalRootContainer(metalRootCoordinator : metalRootCoordinator)
+            MetalRootContainer()
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
             
@@ -47,9 +49,13 @@ struct ContentView: View {
             }
             
             if shouldShowDebugInfo {
-                DebugInfoScreen(
-                    metalRootCoordinator: metalRootCoordinator
-                )
+                DebugInfoScreen()
+            }
+        }
+        .onChange(of: selectedTab) { _, value in
+            if value == nil {
+                /// Reset the Command Buffer Execution Time when we return to nothing
+                metalRootCoordinator.deviceInfo.commandBufferExecutionCall = CommandBufferExecutionCall(name: "", commandBufferExecutionTime: 0)
             }
         }
         .toolbar {
@@ -71,13 +77,34 @@ struct ContentView: View {
 }
 
 class MetalRootCoordinator: ObservableObject {
-    @Published var deviceInfo: DeviceInfo? = nil
+    
+    static let shared = MetalRootCoordinator()
+    
+    @Published var deviceInfo: DeviceInfo = DeviceInfo()
     @Published var performanceState: PerformanceState? = nil
+    
+    @MainActor
+    public func handleCommandBufferExecutionTime(
+        _ cb: MTLCommandBuffer,
+        from: String
+    ) {
+        let start = cb.gpuStartTime   // seconds (mach host time domain)
+        let end   = cb.gpuEndTime
+        guard start > 0, end > 0 else { return }   // still 0 if not available
+        let gpuMs = (end - start) * 1000.0
+        
+        DispatchQueue.main.async {
+            self.deviceInfo.commandBufferExecutionCall = CommandBufferExecutionCall(
+                name: from,
+                commandBufferExecutionTime: gpuMs
+            )
+        }
+    }
 }
 
 struct MetalRootContainer: UIViewRepresentable {
     
-    @ObservedObject var metalRootCoordinator : MetalRootCoordinator
+    @ObservedObject var metalRootCoordinator : MetalRootCoordinator = .shared
     
     func makeCoordinator() -> MetalRootContainerCoordinator {
         MetalRootContainerCoordinator()
@@ -107,7 +134,7 @@ struct MetalRootContainer: UIViewRepresentable {
     
     class MetalRootContainerCoordinator: NSObject, MTKViewDelegate {
         
-        var metalRootCoordinator: MetalRootCoordinator?
+        var metalRootCoordinator: MetalRootCoordinator = .shared
         private var frameCount: Int = 0
         private var lastFPSUpdate: CFTimeInterval = 0
         var currentFPS : Double = 0.0
@@ -120,9 +147,8 @@ struct MetalRootContainer: UIViewRepresentable {
             
         }
         func draw(in view: MTKView) {
-            guard let metalRootCoordinator = metalRootCoordinator else { return }
             updateFPS()
-            metalRootCoordinator.deviceInfo = getDeviceInfo()
+            updateDeviceInfo()
             metalRootCoordinator.performanceState = getPerformanceState()
         }
         
@@ -149,53 +175,49 @@ struct MetalRootContainer: UIViewRepresentable {
             )
         }
         
-        func getDeviceInfo() -> DeviceInfo {
+        func updateDeviceInfo() {
             let device = UIDevice.current
             let processInfo = ProcessInfo.processInfo
             
             // Metal device info
             let metalDevice = MTLCreateSystemDefaultDevice()!
             
-            return DeviceInfo(
-                // Basic device info
-                deviceName: device.name,
-                systemName: device.systemName,
-                systemVersion: device.systemVersion,
-                model: device.model,
-                
-                // Metal capabilities
-                metalDeviceName: metalDevice.name,
-                supportsFamily: [
-                    "Apple1": metalDevice.supportsFamily(.apple1),
-                    "Apple2": metalDevice.supportsFamily(.apple2),
-                    "Apple3": metalDevice.supportsFamily(.apple3),
-                    "Apple4": metalDevice.supportsFamily(.apple4),
-                    "Apple5": metalDevice.supportsFamily(.apple5),
-                    "Apple6": metalDevice.supportsFamily(.apple6),
-                    "Apple7": metalDevice.supportsFamily(.apple7),
-                    "Apple8": metalDevice.supportsFamily(.apple8),
-                    "Apple9": metalDevice.supportsFamily(.apple9),
-                ],
-                
-                // Memory info
-                physicalMemory: processInfo.physicalMemory,
-                
-                // Performance info
-                processorCount: processInfo.processorCount,
-                activeProcessorCount: processInfo.activeProcessorCount,
-                
-                // Metal specific
-                maxBufferLength: metalDevice.maxBufferLength,
-                maxThreadsPerThreadgroup: metalDevice.maxThreadsPerThreadgroup,
-                
-                // Current performance
-                currentFPS: currentFPS
-            )
+            MetalRootCoordinator.shared.deviceInfo.deviceName = device.name
+            
+            MetalRootCoordinator.shared.deviceInfo.systemName = device.systemName
+            MetalRootCoordinator.shared.deviceInfo.systemVersion = device.systemVersion
+            MetalRootCoordinator.shared.deviceInfo.model = device.model
+            
+            // Metal capabilities
+            MetalRootCoordinator.shared.deviceInfo.metalDeviceName = metalDevice.name
+            MetalRootCoordinator.shared.deviceInfo.supportsFamily = [
+                "Apple1": metalDevice.supportsFamily(.apple1),
+                "Apple2": metalDevice.supportsFamily(.apple2),
+                "Apple3": metalDevice.supportsFamily(.apple3),
+                "Apple4": metalDevice.supportsFamily(.apple4),
+                "Apple5": metalDevice.supportsFamily(.apple5),
+                "Apple6": metalDevice.supportsFamily(.apple6),
+                "Apple7": metalDevice.supportsFamily(.apple7),
+                "Apple8": metalDevice.supportsFamily(.apple8),
+                "Apple9": metalDevice.supportsFamily(.apple9),
+            ]
+            
+            // Memory info
+            MetalRootCoordinator.shared.deviceInfo.physicalMemory = processInfo.physicalMemory
+            
+            // Performance info
+            MetalRootCoordinator.shared.deviceInfo.processorCount = processInfo.processorCount
+            MetalRootCoordinator.shared.deviceInfo.activeProcessorCount = processInfo.activeProcessorCount
+            
+            // Metal specific
+            MetalRootCoordinator.shared.deviceInfo.maxBufferLength = metalDevice.maxBufferLength
+            MetalRootCoordinator.shared.deviceInfo.maxThreadsPerThreadgroup = metalDevice.maxThreadsPerThreadgroup
+            
+            // Current performance
+            MetalRootCoordinator.shared.deviceInfo.currentFPS = currentFPS
         }
     }
 }
-
-
 
 #Preview {
     ContentView()

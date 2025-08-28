@@ -1,109 +1,16 @@
 //
-//  MovingBars.swift
+//  OptimizedMovingBarsMetal.swift
 //  MetalTesting
 //
 //  Created by Aryan Rogye on 8/28/25.
 //
 
-import SwiftUI
 import Metal
 import MetalKit
+import SwiftUI
 
-struct MovingBarsView: View {
+struct OptimizedBarView: UIViewRepresentable {
     
-    @StateObject private var barCoordinator: BarCoordinator = BarCoordinator()
-    
-    var body: some View {
-        VStack {
-            Spacer()
-            /// When they internally change the heights they should be aligned to the
-            /// bottom so they look like their going into it
-            ScrollView(.horizontal, showsIndicators: true) {
-                HStack(alignment: .bottom) {
-                    ForEach(0..<barCoordinator.barNumber, id: \.self) { index in
-                        VStack {
-                            BarView(
-                                toggleMove: $barCoordinator.toggleMove,
-                                barCoordinator: barCoordinator
-                            )
-                            .frame(width: 50, height: 80)
-                            Text("\(index)")
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                        }
-                    }
-                }
-                .padding(.bottom)
-            }
-            .frame(alignment: .center)
-            .defaultScrollAnchor(.center)
-
-            Spacer()
-            HStack {
-                decrementButton
-                Spacer()
-                playButton
-                Spacer()
-                incrementButton
-            }
-            .padding(.horizontal, 24)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var incrementButton: some View {
-        Button(action: {
-            barCoordinator.incrementBarNumber()
-        }) {
-            Image(systemName: "plus")
-                .resizable()
-                .frame(width: 50, height: 50)
-        }
-    }
-    
-    private var decrementButton: some View {
-        Button(action: {
-            barCoordinator.decrementBarNumber()
-        }) {
-            Image(systemName: "minus")
-                .resizable()
-                .frame(width: 50, height: 10)
-        }
-    }
-    
-    private var playButton: some View {
-        Button(action: {
-            withAnimation(.snappy) {
-                barCoordinator.toggleMove.toggle()
-            }
-        }) {
-            Image(systemName: barCoordinator.toggleMove ? "pause.fill" : "play.fill")
-                .resizable()
-                .frame(width: 50, height: 50)
-        }
-    }
-}
-
-
-class BarCoordinator: ObservableObject {
-    @Published var toggleMove: Bool = false
-    @Published var barNumber : Int = 3
-    
-    private let minBars = 1
-    private let maxBars = 100
-    
-    public func decrementBarNumber() {
-        barNumber = max(barNumber - 1, minBars)
-    }
-    
-    public func incrementBarNumber() {
-        barNumber = min(barNumber + 1, maxBars)
-    }
-}
-
-struct BarView: UIViewRepresentable {
-    
-    @Binding var toggleMove: Bool
     @ObservedObject var barCoordinator: BarCoordinator
     
     func makeUIView(context: Context) -> some UIView {
@@ -134,7 +41,7 @@ struct BarView: UIViewRepresentable {
         
         private var vertexBuffer : MTLBuffer!
         private var colorBuffer  : MTLBuffer!
-        private var barUniformBuffer : MTLBuffer!
+        private var optimizedBarBuffer : MTLBuffer!
         
         var colors: [SIMD3<Float>] = [
             [1, 0, 0], // red
@@ -174,8 +81,8 @@ struct BarView: UIViewRepresentable {
             let lib = device.makeDefaultLibrary()!
             
             let desc = MTLRenderPipelineDescriptor()
-            desc.vertexFunction   = lib.makeFunction(name: "vertexBarShader")
-            desc.fragmentFunction = lib.makeFunction(name: "fragmentBarShader")
+            desc.vertexFunction   = lib.makeFunction(name: "vertexOptimizedBarShader")
+            desc.fragmentFunction = lib.makeFunction(name: "fragmentOptimizedBarShader")
             desc.colorAttachments[0].pixelFormat = .bgra8Unorm
             
             pso = try! device.makeRenderPipelineState(descriptor: desc)
@@ -189,8 +96,8 @@ struct BarView: UIViewRepresentable {
                 length: MemoryLayout<SIMD3<Float>>.stride * colors.count,
                 options: []
             )
-            barUniformBuffer = device.makeBuffer(
-                length: MemoryLayout<BarUniforms>.stride,
+            optimizedBarBuffer = device.makeBuffer(
+                length: MemoryLayout<OptimizedBarUniforms>.stride,
                 options: []
             )
         }
@@ -202,13 +109,14 @@ struct BarView: UIViewRepresentable {
             
             /// We Edit Contents if we have set barCoordinator
             if let barCoordinator = barCoordinator {
-                let barUniformBufferInfo = barUniformBuffer.contents().bindMemory(to: BarUniforms.self, capacity: 1)
-                barUniformBufferInfo.pointee = BarUniforms(
+                let barUniformBufferInfo = optimizedBarBuffer.contents().bindMemory(to: OptimizedBarUniforms.self, capacity: 1)
+                barUniformBufferInfo.pointee = OptimizedBarUniforms(
+                    number: Float(barCoordinator.barNumber),
                     time: barCoordinator.toggleMove ? Float(CACurrentMediaTime()) : Float(0.0),
                     shouldAnimate: barCoordinator.toggleMove ? 1.0 : 0.0
                 )
             }
-
+            
             
             let cmd = queue.makeCommandBuffer()!
             let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
@@ -225,18 +133,20 @@ struct BarView: UIViewRepresentable {
                 index: 1
             )
             enc.setVertexBuffer(
-                barUniformBuffer,
+                optimizedBarBuffer,
                 offset: 0,
                 index: 2
             )
             
-            cmd.addCompletedHandler { cb in
-                DispatchQueue.main.async {
-                    MetalRootCoordinator.shared.handleCommandBufferExecutionTime(cb, from: "Moving Bars")
-                }
+            if let barCoordinator = barCoordinator {
+                enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 6, instanceCount: barCoordinator.barNumber)
+            } else {
+                enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 6)
             }
-
-            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+            
+            cmd.addCompletedHandler { cb in
+                MetalRootCoordinator.shared.handleCommandBufferExecutionTime(cb, from: "Optimized Moving Bars")
+            }
             
             enc.endEncoding()
             cmd.present(drw)
@@ -245,8 +155,4 @@ struct BarView: UIViewRepresentable {
         
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
     }
-}
-
-#Preview {
-    MovingBarsView()
 }

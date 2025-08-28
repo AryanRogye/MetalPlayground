@@ -9,7 +9,7 @@ import SwiftUI
 
 struct DebugInfoScreen: View {
     
-    @ObservedObject var metalRootCoordinator : MetalRootCoordinator
+    @ObservedObject var metalRootCoordinator : MetalRootCoordinator = .shared
     
     var body: some View {
         FloatingDebugPanel(title: "Debug") {
@@ -26,34 +26,37 @@ struct DebugInfoScreen: View {
         VStack(alignment: .leading) {
             Text("Device Info:")
             Divider()
-            if let d = metalRootCoordinator.deviceInfo {
-                Text("\(d.currentFPS, specifier: "%.2f")")
-                Divider()
-                Text("Device Name: \(d.deviceName)")
-                Divider()
-                Text("System Name: \(d.systemName)")
-                Divider()
-                Text("System Version: \(d.systemVersion)")
-                Divider()
-                Text("Model: \(d.model)")
-                Divider()
-                Text("Metal Device Name: \(d.metalDeviceName)")
-                Divider()
-                Text("Physical Memory: \(d.physicalMemory) bytes")
-                Divider()
-                Text("Processor Count: \(d.processorCount)")
-                Divider()
-                Text("All Active Process Count: \(d.activeProcessorCount)")
-                Divider()
-                Text("Max Buffer Length \(d.maxBufferLength)")
-                Divider()
-                Text("Max Threads Per Thread Group \(d.maxThreadsPerThreadgroup)")
-                Divider()
-                ForEach(Array(d.supportsFamily.enumerated()), id: \.offset) { index, fam in
-                    Text("\(fam.key): \(fam.value)")
-                }
-                Divider()
+            let d = metalRootCoordinator.deviceInfo
+            Text("\(d.currentFPS, specifier: "%.2f")")
+            Divider()
+            Text("Device Name: \(d.deviceName)")
+            
+            Divider()
+            Text(metalRootCoordinator.deviceInfo.commandBufferExecutionTimeText())
+            Divider()
+            
+            Text("System Name: \(d.systemName)")
+            Divider()
+            Text("System Version: \(d.systemVersion)")
+            Divider()
+            Text("Model: \(d.model)")
+            Divider()
+            Text("Metal Device Name: \(d.metalDeviceName)")
+            Divider()
+            Text("Physical Memory: \(d.physicalMemory) bytes")
+            Divider()
+            Text("Processor Count: \(d.processorCount)")
+            Divider()
+            Text("All Active Process Count: \(d.activeProcessorCount)")
+            Divider()
+            Text("Max Buffer Length \(d.maxBufferLength)")
+            Divider()
+            Text("Max Threads Per Thread Group \(d.maxThreadsPerThreadgroup)")
+            Divider()
+            ForEach(Array(d.supportsFamily.enumerated()), id: \.offset) { index, fam in
+                Text("\(fam.key): \(fam.value)")
             }
+            Divider()
         }
     }
     

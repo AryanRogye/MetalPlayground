@@ -22,11 +22,6 @@ struct TriangleInfo {
     float speed;
 };
 
-float sinBetween(float min, float max, float val) {
-    float halfRange = (max - min) / 2;
-    float t = min + halfRange + sin(val) * halfRange;
-    return t;
-}
 float sinBetweenWithSpeed(float min, float max, float val, float speed) {
     float halfRange = (max - min) / 2;
     float t = min + halfRange + sin(val * speed) * halfRange;

@@ -9,7 +9,6 @@
 #include "../headers.metal.h"
 
 using namespace metal;
-constant float barHeight = 2.0;
 
 vertex VertexOut
 vertexOptimizedBarShader(
@@ -19,6 +18,7 @@ vertexOptimizedBarShader(
                 uint vid [[vertex_id]],
                 uint iid [[instance_id]]
                 ) {
+    const float barHeight = 2.0;
     VertexOut out;
     
     float number = barInfo.number; /// This is how many peices we wanna split it into

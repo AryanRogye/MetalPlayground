@@ -10,6 +10,8 @@ import MetalKit
 import SwiftUI
 import Combine
 
+#if os(iOS)
+
 final class TriangleTestMetalCoordinator: ObservableObject {
     fileprivate let renderer = TriangleTestMetal.RendererCoordinator()
     private weak var view: MTKView?
@@ -187,3 +189,5 @@ struct TriangleTestMetal: UIViewRepresentable {
         }
     }
 }
+
+#endif

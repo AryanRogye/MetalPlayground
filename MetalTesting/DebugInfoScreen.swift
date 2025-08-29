@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+#if os(iOS)
+
 struct DebugInfoScreen: View {
     
     @ObservedObject var metalRootCoordinator : MetalRootCoordinator = .shared
@@ -188,3 +190,6 @@ struct FloatingDebugPanel<Content: View>: View {
     
     private func clamp<T: Comparable>(_ x: T, min lo: T, max hi: T) -> T { max(lo, min(x, hi)) }
 }
+
+
+#endif

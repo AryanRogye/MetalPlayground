@@ -42,7 +42,11 @@ struct DeviceInfo {
         if commandBufferExecutionCall.name.isEmpty {
             return "No Command Buffer Execution Call Made"
         } else {
-            return commandBufferExecutionCall.name + ": \(commandBufferExecutionCall.commandBufferExecutionTime)"
+            return """
+            Command Buffer Execution Time
+            |\(commandBufferExecutionCall.name)|
+            \(commandBufferExecutionCall.commandBufferExecutionTime)
+            """
         }
     }
     

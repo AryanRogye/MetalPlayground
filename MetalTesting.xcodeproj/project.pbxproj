@@ -11,16 +11,6 @@
 		9B99E1032E60C49000409C8B /* Untitled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Untitled.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		9B99E1022E60C48E00409C8B /* Exceptions for "MetalTesting" folder in "MetalTesting" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Tabs/TriangleTest/Untitled.swift,
-			);
-			target = 9B84B09D2E5EB600000FB262 /* MetalTesting */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 		9B99E13A2E6126B300409C8B /* Exceptions for "MetalTesting" folder in "Copy Bundle Resources" phase from "MetalTesting" target */ = {
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
@@ -35,7 +25,6 @@
 		9B84B0A02E5EB600000FB262 /* MetalTesting */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				9B99E1022E60C48E00409C8B /* Exceptions for "MetalTesting" folder in "MetalTesting" target */,
 				9B99E13A2E6126B300409C8B /* Exceptions for "MetalTesting" folder in "Copy Bundle Resources" phase from "MetalTesting" target */,
 			);
 			path = MetalTesting;

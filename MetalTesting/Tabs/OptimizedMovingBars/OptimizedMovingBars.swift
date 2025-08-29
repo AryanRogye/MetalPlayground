@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+#if os(iOS)
+
 struct OptimizedMovingBarsView: View {
     /// TODO CHANGE NAME
     @StateObject private var barCoordinator: BarCoordinator = BarCoordinator()
@@ -86,3 +88,5 @@ class OptimizedBarCoordinator: ObservableObject {
 #Preview {
     OptimizedMovingBarsView()
 }
+
+#endif

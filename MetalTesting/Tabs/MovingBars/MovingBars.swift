@@ -9,6 +9,7 @@ import SwiftUI
 import Metal
 import MetalKit
 
+#if os(iOS)
 struct MovingBarsView: View {
     
     @StateObject private var barCoordinator: BarCoordinator = BarCoordinator()
@@ -247,6 +248,9 @@ struct BarView: UIViewRepresentable {
     }
 }
 
+
 #Preview {
     MovingBarsView()
 }
+
+#endif

@@ -25,6 +25,14 @@ struct OptimizedBarUniforms {
     /// If We Shoudl Animate or Not
     var shouldAnimate: Float
 }
+struct FourBarUniforms {
+    /// Represents Number of Bars to Render
+    var number: Float
+    var shouldAnimate: Float
+    var time: Float
+    /// If We Shoudl Animate or Not
+    var gap: Float = 0.3
+}
 
 struct TriangleInfo {
     var min: Float

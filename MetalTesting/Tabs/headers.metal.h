@@ -47,3 +47,10 @@ struct OptimizedBarUniform {
     float time;
     float shouldAnimate;
 };
+
+struct FourBarUniform {
+    float number;
+    float shouldAnimate;
+    float time;
+    float gap;
+};

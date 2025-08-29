@@ -11,19 +11,29 @@ import Metal
 import MetalKit
 
 enum Tabs: String, CaseIterable {
+#if os(iOS)
     case triangle_test = "Triangle Test"
     case moving_bars   = "Moving Bars"
     case moving_bars_optimized = "Moving Bars Optimized"
+    case moving_bars_4_vertices = "Moving Bars 4 Vertices"
+#endif
+    case dominant_color_in_image = "Dominant Color In Image"
     
     @ViewBuilder
     var view: some View {
         switch self {
+#if os(iOS)
         case .triangle_test:
             TriangleTestView()
         case .moving_bars:
             MovingBarsView()
         case .moving_bars_optimized:
             OptimizedMovingBarsView()
+        case .moving_bars_4_vertices:
+            FourVertBarsView()
+#endif
+        case .dominant_color_in_image:
+            DominantColorView()
         }
     }
 }
@@ -36,9 +46,11 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
+            #if os(iOS)
             MetalRootContainer()
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+            #endif
             
             NavigationSplitView {
                 List(Tabs.allCases, id: \.self, selection: $selectedTab) { tab in
@@ -47,10 +59,11 @@ struct ContentView: View {
             } detail: {
                 selectedTab?.view
             }
-            
+#if os(iOS)
             if shouldShowDebugInfo {
                 DebugInfoScreen()
             }
+#endif
         }
         .onChange(of: selectedTab) { _, value in
             if value == nil {
@@ -59,6 +72,7 @@ struct ContentView: View {
             }
         }
         .toolbar {
+#if os(iOS)
             ToolbarItem(placement: .bottomBar) {
                 Button(action: {
                     shouldShowDebugInfo.toggle()
@@ -72,6 +86,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
             }
+#endif
         }
     }
 }
@@ -102,6 +117,7 @@ class MetalRootCoordinator: ObservableObject {
     }
 }
 
+#if os(iOS)
 struct MetalRootContainer: UIViewRepresentable {
     
     @ObservedObject var metalRootCoordinator : MetalRootCoordinator = .shared
@@ -218,6 +234,7 @@ struct MetalRootContainer: UIViewRepresentable {
         }
     }
 }
+#endif
 
 #Preview {
     ContentView()

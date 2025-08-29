@@ -10,6 +10,7 @@ import Combine
 import Metal
 import MetalKit
 
+#if os(iOS)
 struct TriangleTestView: View {
     
     @ObservedObject var metalBackgroundParams = MetalBackgroundParameters.shared
@@ -119,3 +120,6 @@ class MetalBackgroundParameters: ObservableObject {
     @Published var minimum : Float = 0.2
     @Published var maximum : Float = 1.0
 }
+
+
+#endif

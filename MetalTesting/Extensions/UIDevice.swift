@@ -5,6 +5,7 @@
 //  Created by Aryan Rogye on 8/28/25.
 //
 
+#if os(iOS)
 import UIKit
 
 // MARK: - Extensions for readable descriptions
@@ -19,3 +20,5 @@ extension UIDevice.BatteryState {
         }
     }
 }
+
+#endif

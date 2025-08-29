@@ -9,6 +9,8 @@ import Metal
 import MetalKit
 import SwiftUI
 
+#if os(iOS)
+
 struct OptimizedBarView: UIViewRepresentable {
     
     @ObservedObject var barCoordinator: BarCoordinator
@@ -156,3 +158,6 @@ struct OptimizedBarView: UIViewRepresentable {
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
     }
 }
+
+
+#endif

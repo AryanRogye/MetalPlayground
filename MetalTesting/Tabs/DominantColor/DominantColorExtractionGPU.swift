@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Metal
+import MetalKit
 
 extension CGImage {
     /// Checks if the CGImage has a 32-bit RGBA pixel format.
@@ -36,24 +38,90 @@ extension CGImage {
 
 /**
  
- 0) Input → CGImage (and normalize it)
+ ✅ 0) Input → CGImage (and normalize it)
     From UIImage use .cgImage; from NSImage create a CGImage (lock in the exact pixels you’ll feed to GPU).
     Normalize:
         Orientation → upright
         Color space → sRGB (or at least consistent)
         Pixel layout → 8-bit RGBA/BGRA
 
- 1) Downsample on CPU first
+ ✅ 1) Downsample on CPU first
     Shrink the image to something like 256×256 with vImage/CoreImage. It cuts GPU work massively without hurting the result.
  
- 2) Make Metal Texture
+ ✅ 2) Make Metal Texture
     Choose MTLPixelFormat.bgra8Unorm.
     Usage: .shaderRead (input).
     Storage: .storageModeShared on Apple Silicon (simple readback later).
     Load via MTKTextureLoader or makeTexture(desc) + replaceRegion.
  
- 3)
+ 3) Decide result strategy (pick one first)
+    Mean (avg color): one MTLBuffer with 3x uint64 (r,g,b) + 1x uint32 (count). Each thread sums its pixels; use threadgroup partials → one atomic add per group. Fast + great “hello compute”.
+    Mode (dominant bin): 3D histogram (e.g., 32×32×32 = 32,768 bins). Tally in threadgroup memory, flush with atomics to a global bin buffer. Then reduce to arg-max (GPU or CPU).
+ 
+ 4) Build + cache your compute pipeline(s)
+ 
+    Compile your kernel(s) once and cache the MTLComputePipelineState.
+    Also make & cache: MTLCommandQueue, and a small result buffer (shared storage).
+    Keep these as statics in your GPU helper; don’t rebuild every call.
+ 
+ 5) Bind inputs/outputs
+ 
+    Inputs: your texture (likely .bgra8Unorm from MTKTextureLoader with SRGB=false).
+    Outputs:
+        *really just mean for now*
+        Mean: the sums buffer (r,g,b,count).
+        Mode: the bin buffer (e.g., uint32[32768]). Zero it each run (via blit fill or CPU memset if .shared).
+ 
+ 6) Dispatch grid + threadgroups
+    Grid: one thread per pixel (width × height).
+    Threadgroup: start with 16×16 (safe on iOS/Mac).
+    Each thread reads its pixel, handles alpha (e.g., skip if α < threshold).
+ 
+ 7) Reduce + read back
+    Mean: if you did group-level partials → atomics to a single global sum → end result is already in your buffer. On CPU: divide by count, map 0–255 → build UIColor/NSColor.
+    Mode:
+        Easiest: read the bin buffer on CPU and scan for (maxCount, index).
+        Nicer: optional second pass on GPU to get the arg-max.
+    Map the winning bin to RGB (center of bin). Optional polish: take a quick second pass averaging pixels in that bin for a smoother swatch.
+ 
+ 8) Sanity checks (do these once)
+ 
+    Assert texture.pixelFormat == .bgra8Unorm (or whatever your kernel expects) and use that channel order in the kernel.
+    Keep compute math linear: you already set .SRGB=false — good.
+    If you see dark results: make sure you’re not double-premultiplying alpha; either ignore alpha for dominant color or weight by it consistently.
+ 
+ 9) Perf nits (later)
+ 
+    Downsample further (e.g., 128×128) if images are big.
+    For histograms, move most increments to threadgroup memory and flush to global with fewer atomics.
+    Reuse buffers; avoid allocs per call.
  */
+
+enum DominantColorExtractionGPUError: Error {
+    case none
+    case cantConvertToCGImage
+    case cantApplyTransform
+    case cantConvertImageToSRGB
+    case cantConvertImageToRGBA8
+    case cantDownSampleImage
+    
+    var description: String {
+        switch self {
+        case .none:
+            "No Errors Reported"
+        case .cantConvertToCGImage:
+            "Cant Convert Image To CGImage"
+        case .cantApplyTransform:
+            "Cant Apply Transform"
+        case .cantConvertImageToSRGB:
+            "Cant Convert Image to SRGB"
+        case .cantConvertImageToRGBA8:
+            "Cant Convert Image to RGBA8"
+        case .cantDownSampleImage:
+            "Cant Down Sample Image"
+        }
+    }
+}
 
 class DominantColorExtractionGPU {
     
@@ -194,25 +262,28 @@ class DominantColorExtractionGPU {
     
     // MARK: - iOS Dominant Color
 #if os(iOS)
-    public static func getDominantColor(from image: UIImage) -> UIColor? {
+    
+    private static let domColorDevice = MTLCreateSystemDefaultDevice()!
+    
+    public static func getDominantColor(from image: UIImage) throws -> UIColor? {
         
         /// Step 0. Get CGImage
         guard var cgImage = image.cgImage else {
-            print("Couldnt Convert Image To CGImage")
-            return nil
+            throw DominantColorExtractionGPUError.cantConvertToCGImage
         }
         
         /// Normalize Steps:
         /// Upright Checks
         var transform: CGAffineTransform?
         if image.imageOrientation != .up {
-            print("CGImage is Not Upright, Need to Transform")
             transform = computeTransformUpright(image: image, cgImage: cgImage)
         }
         if let transform = transform {
             if let transformedCGImage = applyTransform(transform, to: cgImage) {
                 print("Applied Transformed CGImage")
                 cgImage = transformedCGImage
+            } else {
+                throw DominantColorExtractionGPUError.cantApplyTransform
             }
         }
         
@@ -222,8 +293,7 @@ class DominantColorExtractionGPU {
             if let sRGB_Image = forceCGImageToSRGB(image: cgImage) {
                 cgImage = sRGB_Image
             } else {
-                print("Couldnt Convert CGImage To sRGB")
-                return nil
+                throw DominantColorExtractionGPUError.cantConvertImageToSRGB
             }
         }
         
@@ -233,20 +303,38 @@ class DominantColorExtractionGPU {
             if let rgba8_image = convertToRGBA8(cgImage: cgImage) {
                 cgImage = rgba8_image
             } else {
-                print("Couldnt Convert CGImage To RGBA8")
-                return nil
+                throw DominantColorExtractionGPUError.cantConvertImageToRGBA8
             }
         }
-
-
+        
+        /// Step 1. Downsample Shrink to something like 256x256
+        if let downSampledImage = DominantColorExtraction.resizeImageWithVImage(
+            cgImage,
+            to: CGSize(width: 256, height: 256)
+        ) {
+            cgImage = downSampledImage
+        } else {
+            throw DominantColorExtractionGPUError.cantDownSampleImage
+        }
+        
+        /// Step 2. Make Metal Texture
+        let loader = MTKTextureLoader(device: domColorDevice)
+        
+        let tex = try loader.newTexture(
+            cgImage: cgImage,
+            options: [
+                .SRGB: false as NSNumber, // you already normalized; keep compute math linear
+                .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+                .textureStorageMode: NSNumber(value: MTLStorageMode.shared.rawValue) // nice for Apple Silicon
+            ]
+        )
+        
         return nil
     }
     
     /// Function Will Compute The Transform required to make the image upright
     private static func computeTransformUpright(image: UIImage, cgImage: CGImage) -> CGAffineTransform {
         var transform = CGAffineTransform.identity
-        let width = cgImage.width
-        let height = cgImage.height
         
         switch image.imageOrientation {
         case .down, .downMirrored:

@@ -13,7 +13,7 @@ class DominantColorExtraction {
     /**
      * Ultra-fast image resizing using vImage (Accelerate framework)
      */
-    private static func resizeImageWithVImage(_ cgImage: CGImage, to size: CGSize) -> CGImage? {
+    public static func resizeImageWithVImage(_ cgImage: CGImage, to size: CGSize) -> CGImage? {
         let width = Int(size.width)
         let height = Int(size.height)
         

@@ -14,6 +14,9 @@ struct DominantColorView_iOS: View {
     @State private var dominantColorGPU: UIColor?
     @State private var selectedImage: UIImage?
     
+    @State private var dominantColorGPUError: DominantColorExtractionGPUError = .none
+    @State private var pressGPUOnce: Bool = false
+    
     var body: some View {
         VStack {
             imagePicker
@@ -27,20 +30,41 @@ struct DominantColorView_iOS: View {
         }
     }
     
+    private func getDomColorFromGPU(_ image: UIImage) {
+        do {
+            pressGPUOnce = true
+            dominantColorGPU = try DominantColorExtractionGPU.getDominantColor(from: image)
+        } catch let error as DominantColorExtractionGPUError  {
+            dominantColorGPUError = error
+        } catch {
+            print("Unkown Error: \(error)")
+        }
+    }
+    
     @ViewBuilder
     private func dominantColorGPUView() -> some View {
         if let image = selectedImage {
-            HStack {
-                Button(action: {
-                    dominantColorGPU = DominantColorExtractionGPU.getDominantColor(from: image)
-                }) {
-                    Text("Get Dominant Color (GPU")
+            VStack {
+                HStack {
+                    Button(action: { getDomColorFromGPU(image) }) {
+                        Text("Get Dominant Color (GPU")
+                    }
+                    Spacer()
+                    if let dominantColorGPU = dominantColorGPU {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(uiColor: dominantColorGPU))
+                            .frame(width: 80, height: 80)
+                    }
                 }
-                Spacer()
-                if let dominantColorGPU = dominantColorGPU {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(uiColor: dominantColorGPU))
-                        .frame(width: 80, height: 80)
+                
+                if pressGPUOnce {
+                    Text(dominantColorGPUError.description)
+                        .foregroundStyle(
+                            dominantColorGPUError == .none
+                            ? Color.primary
+                            : Color.red
+                        )
+                        .padding(.top, 4)
                 }
             }
             .padding()

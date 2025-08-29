@@ -6,47 +6,20 @@
 //
 
 #include <metal_stdlib>
+#include "../headers.metal.h"
+
 using namespace metal;
-
-struct OptimizedVertexBarIn {
-    float2 pos;
-};
-
-struct OptimizedVertexBarOut {
-    float4 position [[position]]; // required so rasterizer knows screen pos
-    float4 color;                 // any extra varyings you want to interpolate
-};
-
-struct OptimizedBarUniform {
-    float number;
-    float time;
-    float shouldAnimate;
-};
-
-// To scale around a specific baseline b (not the origin), use:
-// y' = b + (y - b) * s
-float Oscale(float y, float baseline, float scale) {
-    return baseline + (y - baseline) * scale;
-}
-
-float OsinBetween(float min, float max, float val) {
-    float halfRange = (max - min) / 2;
-    float t = min + halfRange + sin(val) * halfRange;
-    return t;
-}
-
-
 constant float barHeight = 2.0;
 
-vertex OptimizedVertexBarOut
+vertex VertexOut
 vertexOptimizedBarShader(
-                const device OptimizedVertexBarIn* vertices [[buffer(0)]],
+                const device VertexIn* vertices [[buffer(0)]],
                 const device float3* colors   [[buffer(1)]],
                 constant OptimizedBarUniform& barInfo [[buffer(2)]],
                 uint vid [[vertex_id]],
                 uint iid [[instance_id]]
                 ) {
-    OptimizedVertexBarOut out;
+    VertexOut out;
     
     float number = barInfo.number; /// This is how many peices we wanna split it into
     
@@ -56,19 +29,22 @@ vertexOptimizedBarShader(
     float2 pos = vertices[vid].pos;
     /// this
     
-    pos.x = Oscale(pos.x, -1.0, 0.2);
+    pos.x = scale(pos.x, -1.0, 0.2);
     pos.x += yOffset;
 
     out.position = float4(pos, 0.0, 1.0);   // expand 2D → 4D
-    out.color = float4(
-                       colors[vid],
-                       1.0);
+    out.color = float4(colors[vid],1.0);
+    
+    if(barInfo.shouldAnimate) {
+        float scaleAmount = sinBetweenWithSpeed(0.1, 1.0, barInfo.time, 1.0);
+        pos.y = scale(pos.y, -1, scaleAmount);
+    }
     
     return out;
 }
 // -> Return Feeds into the Fragment Shader as the `in` inside it
 
 
-fragment float4 fragmentOptimizedBarShader(OptimizedVertexBarOut in [[stage_in]]) {
+fragment float4 fragmentOptimizedBarShader(VertexOut in [[stage_in]]) {
     return in.color;
 }

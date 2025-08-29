@@ -21,11 +21,22 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		9B99E13A2E6126B300409C8B /* Exceptions for "MetalTesting" folder in "Copy Bundle Resources" phase from "MetalTesting" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 9B84B09C2E5EB600000FB262 /* Resources */;
+			membershipExceptions = (
+				Tabs/headers.metal.h,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9B84B0A02E5EB600000FB262 /* MetalTesting */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				9B99E1022E60C48E00409C8B /* Exceptions for "MetalTesting" folder in "MetalTesting" target */,
+				9B99E13A2E6126B300409C8B /* Exceptions for "MetalTesting" folder in "Copy Bundle Resources" phase from "MetalTesting" target */,
 			);
 			path = MetalTesting;
 			sourceTree = "<group>";

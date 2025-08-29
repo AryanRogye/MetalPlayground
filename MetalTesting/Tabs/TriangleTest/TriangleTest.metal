@@ -6,27 +6,8 @@
 //
 
 #include <metal_stdlib>
+#include "../headers.metal.h"
 using namespace metal;
-
-struct VertexIn {
-    float2 pos;
-};
-struct VertexOut {
-    float4 position [[position]]; // required so rasterizer knows screen pos
-    float4 color;                 // any extra varyings you want to interpolate
-};
-struct TriangleInfo {
-    float min;
-    float max;
-    float time;
-    float speed;
-};
-
-float sinBetweenWithSpeed(float min, float max, float val, float speed) {
-    float halfRange = (max - min) / 2;
-    float t = min + halfRange + sin(val * speed) * halfRange;
-    return t;
-}
 
 vertex VertexOut vertexShader(
                               const device VertexIn* vertices [[buffer(0)]],

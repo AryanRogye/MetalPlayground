@@ -22,6 +22,14 @@ struct DominantColorView_iOS: View {
             imagePicker
             dominantColorCPUView()
             dominantColorGPUView()
+            if pressGPUOnce {
+                Text(dominantColorGPUError.description)
+                    .foregroundStyle(
+                        dominantColorGPUError == .none
+                        ? Color.primary
+                        : Color.red
+                    )
+            }
             Spacer()
         }
         // iOS: present as a sheet
@@ -55,16 +63,6 @@ struct DominantColorView_iOS: View {
                             .fill(Color(uiColor: dominantColorGPU))
                             .frame(width: 80, height: 80)
                     }
-                }
-                
-                if pressGPUOnce {
-                    Text(dominantColorGPUError.description)
-                        .foregroundStyle(
-                            dominantColorGPUError == .none
-                            ? Color.primary
-                            : Color.red
-                        )
-                        .padding(.top, 4)
                 }
             }
             .padding()

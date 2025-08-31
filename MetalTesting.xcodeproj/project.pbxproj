@@ -8,7 +8,6 @@
 
 /* Begin PBXFileReference section */
 		9B84B09E2E5EB600000FB262 /* MetalTesting.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalTesting.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9B99E1032E60C49000409C8B /* Untitled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Untitled.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -48,7 +47,6 @@
 			children = (
 				9B84B0A02E5EB600000FB262 /* MetalTesting */,
 				9B84B09F2E5EB600000FB262 /* Products */,
-				9B99E1032E60C49000409C8B /* Untitled.swift */,
 			);
 			sourceTree = "<group>";
 		};

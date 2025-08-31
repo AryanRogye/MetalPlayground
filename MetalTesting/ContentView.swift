@@ -128,12 +128,7 @@ struct MetalRootContainer: UIViewRepresentable {
     
     func makeUIView(context: Context) -> some UIView {
         let mtkView = MTKView()
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            print("Error: Metal is not supported on this device.")
-            return MTKView()
-        }
-        
-        mtkView.device = device
+        mtkView.device = MetalContext.shared.device
         mtkView.colorPixelFormat = .bgra8Unorm
         mtkView.depthStencilPixelFormat = .invalid
         mtkView.clearColor = MTLClearColorMake(0,0,0,1)
@@ -150,9 +145,11 @@ struct MetalRootContainer: UIViewRepresentable {
     
     class MetalRootContainerCoordinator: NSObject, MTKViewDelegate {
         
+        private let ctx = MetalContext.shared
         var metalRootCoordinator: MetalRootCoordinator = .shared
         private var frameCount: Int = 0
-        private var lastFPSUpdate: CFTimeInterval = 0
+        private var lastFPSUpdate: CFTimeInterval = CACurrentMediaTime()
+        private var lastDeviceInfoUpdate: CFTimeInterval = CACurrentMediaTime()
         var currentFPS : Double = 0.0
 
         override init() {
@@ -164,7 +161,11 @@ struct MetalRootContainer: UIViewRepresentable {
         }
         func draw(in view: MTKView) {
             updateFPS()
-            updateDeviceInfo()
+            let now = CACurrentMediaTime()
+            if now - lastDeviceInfoUpdate >= 1.0 {
+                updateDeviceInfo()
+                lastDeviceInfoUpdate = now
+            }
             metalRootCoordinator.performanceState = getPerformanceState()
         }
         
@@ -196,7 +197,7 @@ struct MetalRootContainer: UIViewRepresentable {
             let processInfo = ProcessInfo.processInfo
             
             // Metal device info
-            let metalDevice = MTLCreateSystemDefaultDevice()!
+            let metalDevice = ctx.device
             
             MetalRootCoordinator.shared.deviceInfo.deviceName = device.name
             
